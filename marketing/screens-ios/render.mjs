@@ -1,7 +1,7 @@
 // Render six App Store screenshots from template.html + the source iPhone shots.
-// Output: marketing/screens/01.png … 06.png at 1242×2688.
+// Output: marketing/screens-ios/01.png … 06.png at 1242×2688.
 //
-// Usage: node marketing/screens/render.mjs
+// Usage: node marketing/screens-ios/render.mjs
 
 import { chromium } from "playwright";
 import path from "node:path";
