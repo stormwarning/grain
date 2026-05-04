@@ -131,14 +131,19 @@
     gap: 10px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0 16px;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
   }
   .rail::-webkit-scrollbar {
     display: none;
+  }
+  .rail::before,
+  .rail::after {
+    content: '';
+    flex: 0 0 16px;
   }
 
   .card {
