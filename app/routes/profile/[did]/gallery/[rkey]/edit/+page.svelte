@@ -61,13 +61,44 @@
   let posted = $state(false)
   let error = $state<string | null>(null)
 
-  async function blobToDataUrl(blob: Blob): Promise<string> {
+  function blobToDataUrl(blob: Blob): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
       reader.onerror = reject
       reader.readAsDataURL(blob)
     })
+  }
+
+  let pdsUrlCache: string | null = null
+
+  async function resolvePdsUrl(did: string): Promise<string> {
+    if (pdsUrlCache) return pdsUrlCache
+    const res = await fetch(`https://plc.directory/${did}`)
+    if (!res.ok) throw new Error('Failed to resolve DID document')
+    const doc = await res.json()
+    const svc = doc.service?.find((s: any) => s.type === 'AtprotoPersonalDataServer')
+    if (!svc?.serviceEndpoint) throw new Error('PDS not found in DID document')
+    pdsUrlCache = svc.serviceEndpoint
+    return pdsUrlCache
+  }
+
+  async function fetchPhotoDataUrl(photo: PhotoView): Promise<string> {
+    const fullsize = photo.fullsize
+    // Local dev: already a com.atproto.sync.getBlob URL
+    if (fullsize.includes('com.atproto.sync.getBlob')) {
+      const res = await fetch(fullsize)
+      const blob = await res.blob()
+      return blobToDataUrl(blob)
+    }
+    // Production: parse CID from CDN URL, fetch from PDS
+    const did = photo.uri.split('/')[2]
+    const blobCid = new URL(fullsize).pathname.split('/').pop()!
+    const pdsUrl = await resolvePdsUrl(did)
+    const res = await fetch(`${pdsUrl}/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${blobCid}`)
+    if (!res.ok) throw new Error(`Failed to fetch blob: ${res.status}`)
+    const blob = await res.blob()
+    return blobToDataUrl(blob)
   }
 
   async function postToBluesky() {
@@ -77,17 +108,12 @@
     try {
       const photos = (gallery.items ?? []) as PhotoView[]
       const images = await Promise.all(
-        photos.slice(0, 4).map(async (photo) => {
-          const res = await fetch(photo.fullsize)
-          const blob = await res.blob()
-          const dataUrl = await blobToDataUrl(blob)
-          return {
-            dataUrl,
-            alt: photo.alt ?? '',
-            width: photo.aspectRatio?.width ?? 4,
-            height: photo.aspectRatio?.height ?? 3,
-          }
-        })
+        photos.slice(0, 4).map(async (photo) => ({
+          dataUrl: await fetchPhotoDataUrl(photo),
+          alt: photo.alt ?? '',
+          width: photo.aspectRatio?.width ?? 4,
+          height: photo.aspectRatio?.height ?? 3,
+        }))
       )
       const did = gallery.creator?.did!
       const rkey = gallery.uri.split('/').pop()!
