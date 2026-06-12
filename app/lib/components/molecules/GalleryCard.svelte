@@ -10,7 +10,7 @@
   import ReportButton from './ReportButton.svelte'
   import ProfilePopover from './ProfilePopover.svelte'
   import { relativeTime } from '$lib/utils'
-  import { MessageCircle, Send, ChevronLeft, ChevronRight, Trash2, Heart, Flag } from 'lucide-svelte'
+  import { MessageCircle, Send, ChevronLeft, ChevronRight, Trash2, Heart, Flag, Pencil } from 'lucide-svelte'
   import OverflowMenu from '../atoms/OverflowMenu.svelte'
   import { share } from '$lib/utils/share'
   import { browser } from '$app/environment'
@@ -185,6 +185,12 @@
       {/if}
       {#if isOwner}
         <div class="menu-divider"></div>
+        {#if $viewer?.did === 'did:plc:bcgltzqazw5tb6k2g3ttenbj'}
+          <a class="menu-item" href="/profile/{gallery.creator?.did}/gallery/{gallery.uri.split('/').pop()}/edit">
+            <Pencil size={15} />
+            Edit gallery
+          </a>
+        {/if}
         <button class="menu-item delete" type="button" onclick={deleteGallery} disabled={deleting}>
           <Trash2 size={15} />
           Delete gallery

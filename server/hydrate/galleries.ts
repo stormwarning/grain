@@ -159,10 +159,10 @@ export async function hydrateGalleries(
     ]);
 
   // Group gallery items by gallery URI
-  const itemsByGallery = new Map<string, Array<{ photoUri: string; position: number }>>();
+  const itemsByGallery = new Map<string, Array<{ photoUri: string; position: number; itemUri: string; itemCreatedAt: string }>>();
   for (const row of galleryItemRows) {
     if (!itemsByGallery.has(row.gallery)) itemsByGallery.set(row.gallery, []);
-    itemsByGallery.get(row.gallery)!.push({ photoUri: row.item, position: row.position ?? 0 });
+    itemsByGallery.get(row.gallery)!.push({ photoUri: row.item, position: row.position ?? 0, itemUri: row.uri, itemCreatedAt: row.created_at });
   }
 
   // Fetch all referenced photos + EXIF data
@@ -204,6 +204,11 @@ export async function hydrateGalleries(
           alt: val.alt,
           aspectRatio: val.aspectRatio ?? { width: 4, height: 3 },
           ...(exifRow ? { exif: buildExifView(exifRow) } : {}),
+          gallery: {
+            item: gi.itemUri,
+            itemCreatedAt: gi.itemCreatedAt,
+            itemPosition: gi.position,
+          },
         });
       })
       .filter((v): v is PhotoView => v !== null);
