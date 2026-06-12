@@ -17,6 +17,7 @@
   import OGMeta from '$lib/components/atoms/OGMeta.svelte'
   import { LoaderCircle, X, ImagePlus, RefreshCw } from 'lucide-svelte'
   import type { LocationData } from '$lib/components/atoms/LocationInput.svelte'
+  import { createBskyPost } from '$lib/utils/bsky-post'
 
   let { data } = $props()
 
@@ -56,7 +57,56 @@
 
   let saving = $state(false)
   let processing = $state(false)
+  let posting = $state(false)
+  let posted = $state(false)
   let error = $state<string | null>(null)
+
+  async function blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  async function postToBluesky() {
+    if (!gallery || posting) return
+    posting = true
+    error = null
+    try {
+      const photos = (gallery.items ?? []) as PhotoView[]
+      const images = await Promise.all(
+        photos.slice(0, 4).map(async (photo) => {
+          const res = await fetch(photo.fullsize)
+          const blob = await res.blob()
+          const dataUrl = await blobToDataUrl(blob)
+          return {
+            dataUrl,
+            alt: photo.alt ?? '',
+            width: photo.aspectRatio?.width ?? 4,
+            height: photo.aspectRatio?.height ?? 3,
+          }
+        })
+      )
+      const did = gallery.creator?.did!
+      const rkey = gallery.uri.split('/').pop()!
+      await createBskyPost({
+        url: `${window.location.origin}/profile/${did}/gallery/${rkey}`,
+        title: title.trim() || undefined,
+        location: gallery.location
+          ? { name: gallery.location.name, address: (gallery as any).address }
+          : null,
+        description: description.trim() || undefined,
+        images,
+      })
+      posted = true
+    } catch (err: any) {
+      error = err.message || 'Failed to post to Bluesky.'
+    } finally {
+      posting = false
+    }
+  }
 
   let addFileInput: HTMLInputElement | undefined = $state()
   let replaceFileInputs = $state<Record<number, HTMLInputElement>>({})
@@ -468,6 +518,19 @@
       </div>
     {/each}
   </div>
+
+  {#if !(gallery as any).crossPost && !posted}
+    <div class="bsky-section">
+      <p class="bsky-hint">This gallery hasn't been shared to Bluesky yet.</p>
+      <Button onclick={postToBluesky} disabled={posting}>
+        {#if posting}<LoaderCircle size={16} class="spin" /> Posting...{:else}Post to Bluesky{/if}
+      </Button>
+    </div>
+  {:else if posted}
+    <div class="bsky-section">
+      <p class="bsky-success">Posted to Bluesky.</p>
+    </div>
+  {/if}
 {/if}
 
 <style>
@@ -597,6 +660,25 @@
     flex-shrink: 0;
   }
   .alt-field { flex: 1; }
+
+  /* Bluesky section */
+  .bsky-section {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bsky-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .bsky-success {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+  }
 
   :global(.spin) {
     animation: spin 1s linear infinite;
