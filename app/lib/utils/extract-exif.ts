@@ -56,7 +56,7 @@ export async function extractExif(
 		meta.title = (raw.title?.value || raw.ObjectName)?.trim() ?? undefined;
 		meta.description =
 			(raw.ImageDescription || raw.Caption)?.trim() ?? undefined;
-		meta.alt = raw.AltTextAccessibility?.value ?? undefined;
+		meta.alt = raw.AltTextAccessibility?.value.trim() ?? undefined;
 		meta.keywords = raw.Keywords || raw.subject || raw.weightedFlatSubject;
 
 		let gps: GpsData | undefined;
